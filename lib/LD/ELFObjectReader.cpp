@@ -10,9 +10,11 @@
 
 #include <mcld/IRBuilder.h>
 #include <mcld/MC/Input.h>
-#include <mcld/LD/ELFReader.h>
-#include <mcld/LD/EhFrameReader.h>
 #include <mcld/LD/EhFrame.h>
+#include <mcld/LD/EhFrameReader.h>
+#include <mcld/LD/ELFReaderWriter.h>
+#include <mcld/LD/LDContext.h>
+#include <mcld/LinkerConfig.h>
 #include <mcld/Target/GNULDBackend.h>
 #include <mcld/Support/MsgHandling.h>
 #include <mcld/Support/MemoryArea.h>
@@ -31,63 +33,50 @@ using namespace mcld;
 // ELFObjectReader
 //===----------------------------------------------------------------------===//
 /// constructor
-ELFObjectReader::ELFObjectReader(GNULDBackend& pBackend,
-                                 IRBuilder& pBuilder,
-                                 const LinkerConfig& pConfig)
-  : ObjectReader(),
-    m_pELFReader(NULL),
-    m_pEhFrameReader(NULL),
-    m_Builder(pBuilder),
-    m_ReadFlag(ParseEhFrame),
-    m_Backend(pBackend),
-    m_Config(pConfig) {
-  if (pConfig.targets().is32Bits() && pConfig.targets().isLittleEndian()) {
-    m_pELFReader = new ELFReader<32, true>(pBackend);
-  }
-  else if (pConfig.targets().is64Bits() && pConfig.targets().isLittleEndian()) {
-    m_pELFReader = new ELFReader<64, true>(pBackend);
-  }
-
-  m_pEhFrameReader = new EhFrameReader();
-}
+ELFObjectReader::ELFObjectReader(const GenericELFReaderWriter &pELFReaderWriter,
+                                 const LinkerConfig &pConfig,
+                                 IRBuilder& pBuilder)
+ : ObjectReader(),
+   m_ELFReaderWriter(pELFReaderWriter),
+   m_pEhFrameReader(new EhFrameReader()),
+   m_Builder(pBuilder),
+   m_ReadFlag(ParseEhFrame),
+   m_Config(pConfig) {}
 
 /// destructor
-ELFObjectReader::~ELFObjectReader()
-{
-  delete m_pELFReader;
+ELFObjectReader::~ELFObjectReader() {
   delete m_pEhFrameReader;
 }
 
 /// isMyFormat
-bool ELFObjectReader::isMyFormat(Input &pInput, bool &pContinue) const
-{
+bool ELFObjectReader::isMyFormat(Input &pInput, bool &pContinue) const {
   assert(pInput.hasMemArea());
 
   // Don't warning about the frequently requests.
   // MemoryArea has a list of cache to handle this.
-  size_t hdr_size = m_pELFReader->getELFHeaderSize();
+  size_t hdr_size = m_ELFReaderWriter.getHeaderSize();
   if (pInput.memArea()->size() < hdr_size)
     return false;
 
   llvm::StringRef region = pInput.memArea()->request(pInput.fileOffset(),
                                                      hdr_size);
-
   const char* ELF_hdr = region.begin();
-  bool result = true;
-  if (!m_pELFReader->isELF(ELF_hdr)) {
-    pContinue = true;
-    result = false;
-  } else if (Input::Object != m_pELFReader->fileType(ELF_hdr)) {
-    pContinue = true;
-    result = false;
-  } else if (!m_pELFReader->isMyEndian(ELF_hdr)) {
-    pContinue = false;
-    result = false;
-  } else if (!m_pELFReader->isMyMachine(ELF_hdr)) {
-    pContinue = false;
-    result = false;
-  }
-  return result;
+
+  pContinue = true;
+  if (!m_ELFReaderWriter.isELF(ELF_hdr))
+    return false;
+
+  if (m_ELFReaderWriter.fileType(ELF_hdr) != Input::Object)
+    return false;
+
+  pContinue = false;
+  if (!m_ELFReaderWriter.isMyEndian(ELF_hdr))
+    return false;
+
+  if (!m_ELFReaderWriter.isMyMachine(ELF_hdr))
+    return false;
+
+  return true;
 }
 
 /// readHeader - read section header and create LDSections.
@@ -95,15 +84,14 @@ bool ELFObjectReader::readHeader(Input& pInput)
 {
   assert(pInput.hasMemArea());
 
-  size_t hdr_size = m_pELFReader->getELFHeaderSize();
+  size_t hdr_size = m_ELFReaderWriter.getHeaderSize();
   if (pInput.memArea()->size() < hdr_size)
     return false;
 
   llvm::StringRef region = pInput.memArea()->request(pInput.fileOffset(),
                                                      hdr_size);
   const char* ELF_hdr = region.begin();
-  bool result = m_pELFReader->readSectionHeaders(pInput, ELF_hdr);
-  return result;
+  return m_ELFReaderWriter.readSectionHeaders(ELF_hdr, pInput);
 }
 
 /// readSections - read all regular sections.
@@ -121,9 +109,9 @@ bool ELFObjectReader::readSections(Input& pInput)
       case LDFileFormat::Group: {
         assert(NULL != (*section)->getLink());
         ResolveInfo* signature =
-            m_pELFReader->readSignature(pInput,
-                                        *(*section)->getLink(),
-                                        (*section)->getInfo());
+            m_ELFReaderWriter.readSignature(pInput,
+                                      *(*section)->getLink(),
+                                      (*section)->getInfo());
 
         bool exist = false;
         if (0 == signature->nameSize() &&
@@ -166,7 +154,7 @@ bool ELFObjectReader::readSections(Input& pInput)
               (*section)->setKind(LDFileFormat::Ignore);
             else {
               SectionData* sd = IRBuilder::CreateSectionData(**section);
-              if (!m_pELFReader->readRegularSection(pInput, *sd))
+              if (!m_ELFReaderWriter.readRegularSection(pInput, *sd))
                 fatal(diag::err_cannot_read_section) << (*section)->name();
             }
           } else {
@@ -175,7 +163,7 @@ bool ELFObjectReader::readSections(Input& pInput)
             else
               (*section)->setKind(LDFileFormat::DATA);
             SectionData* sd = IRBuilder::CreateSectionData(**section);
-            if (!m_pELFReader->readRegularSection(pInput, *sd))
+            if (!m_ELFReaderWriter.readRegularSection(pInput, *sd))
               fatal(diag::err_cannot_read_section) << (*section)->name();
           }
         } else {
@@ -207,7 +195,7 @@ bool ELFObjectReader::readSections(Input& pInput)
       case LDFileFormat::Note:
       case LDFileFormat::MetaData: {
         SectionData* sd = IRBuilder::CreateSectionData(**section);
-        if (!m_pELFReader->readRegularSection(pInput, *sd))
+        if (!m_ELFReaderWriter.readRegularSection(pInput, *sd))
           fatal(diag::err_cannot_read_section) << (*section)->name();
         break;
       }
@@ -217,7 +205,7 @@ bool ELFObjectReader::readSections(Input& pInput)
         }
         else {
           SectionData* sd = IRBuilder::CreateSectionData(**section);
-          if (!m_pELFReader->readRegularSection(pInput, *sd)) {
+          if (!m_ELFReaderWriter.readRegularSection(pInput, *sd)) {
             fatal(diag::err_cannot_read_section) << (*section)->name();
           }
         }
@@ -236,7 +224,7 @@ bool ELFObjectReader::readSections(Input& pInput)
           }
         }
         else {
-          if (!m_pELFReader->readRegularSection(pInput,
+          if (!m_ELFReaderWriter.readRegularSection(pInput,
                                                 *eh_frame->getSectionData())) {
             fatal(diag::err_cannot_read_section) << (*section)->name();
           }
@@ -246,7 +234,7 @@ bool ELFObjectReader::readSections(Input& pInput)
       /** target dependent sections **/
       case LDFileFormat::Target: {
         SectionData* sd = IRBuilder::CreateSectionData(**section);
-        if (!m_Backend.readSection(pInput, *sd)) {
+        if (!m_ELFReaderWriter.target().readSection(pInput, *sd)) {
           fatal(diag::err_cannot_read_target_section) << (*section)->name();
         }
         break;
@@ -302,10 +290,8 @@ bool ELFObjectReader::readSymbols(Input& pInput)
   llvm::StringRef strtab_region = pInput.memArea()->request(
       pInput.fileOffset() + strtab_shdr->offset(), strtab_shdr->size());
   const char* strtab = strtab_region.begin();
-  bool result = m_pELFReader->readSymbols(pInput,
-                                          m_Builder,
-                                          symtab_region,
-                                          strtab);
+  bool result = m_ELFReaderWriter.readSymbols(symtab_region, strtab,
+                                              pInput, m_Builder);
   return result;
 }
 
@@ -323,23 +309,9 @@ bool ELFObjectReader::readRelocations(Input& pInput)
     uint32_t size = (*rs)->size();
     llvm::StringRef region = mem->request(offset, size);
     IRBuilder::CreateRelocData(**rs); ///< create relocation data for the header
-    switch ((*rs)->type()) {
-      case llvm::ELF::SHT_RELA: {
-        if (!m_pELFReader->readRela(pInput, **rs, region)) {
-          return false;
-        }
-        break;
-      }
-      case llvm::ELF::SHT_REL: {
-        if (!m_pELFReader->readRel(pInput, **rs, region)) {
-          return false;
-        }
-        break;
-      }
-      default: { ///< should not enter
-        return false;
-      }
-    } // end of switch
+
+    if (!m_ELFReaderWriter.readRelocation(region, pInput, **rs))
+      return false;
 
   } // end of for all relocation data
 

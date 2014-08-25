@@ -30,6 +30,7 @@ class Layout;
 class EhFrameHdr;
 class BranchIslandFactory;
 class StubFactory;
+class GenericELFReaderWriter;
 class GNUInfo;
 class ELFFileFormat;
 class ELFSegmentFactory;
@@ -120,12 +121,6 @@ public:
   virtual uint64_t emitSectionData(const LDSection& pSection,
                                    MemoryRegion& pRegion) const = 0;
 
-  /// emitRegNamePools - emit regular name pools - .symtab, .strtab
-  virtual void emitRegNamePools(const Module& pModule, FileOutputBuffer& pOutput);
-
-  /// emitNamePools - emit dynamic name pools - .dyntab, .dynstr, .hash
-  virtual void emitDynNamePools(Module& pModule, FileOutputBuffer& pOutput);
-
   /// emitELFHashTab - emit .hash
   virtual void emitELFHashTab(const Module::SymbolTable& pSymtab,
                               FileOutputBuffer& pOutput);
@@ -137,9 +132,6 @@ public:
   /// sizeInterp - compute the size of program interpreter's name
   /// In ELF executables, this is the length of dynamic linker's path name
   virtual void sizeInterp();
-
-  /// emitInterp - emit the .interp
-  virtual void emitInterp(FileOutputBuffer& pOutput);
 
   /// hasEntryInStrTab - symbol has an entry in a .strtab
   virtual bool hasEntryInStrTab(const LDSymbol& pSym) const;
@@ -312,18 +304,10 @@ public:
 
 protected:
   /// getRelEntrySize - the size in BYTE of rel type relocation
-  virtual size_t getRelEntrySize() = 0;
+  size_t getRelEntrySize() const;
 
   /// getRelEntrySize - the size in BYTE of rela type relocation
-  virtual size_t getRelaEntrySize() = 0;
-
-  uint64_t getSymbolSize(const LDSymbol& pSymbol) const;
-
-  uint64_t getSymbolInfo(const LDSymbol& pSymbol) const;
-
-  uint64_t getSymbolValue(const LDSymbol& pSymbol) const;
-
-  uint64_t getSymbolShndx(const LDSymbol& pSymbol) const;
+  size_t getRelaEntrySize() const;
 
   /// isTemporary - Whether pSymbol is a local label.
   virtual bool isTemporary(const LDSymbol& pSymbol) const;
@@ -335,20 +319,6 @@ protected:
   /// getGNUHashMaskbitslog2 - calculate the number of mask bits in log2
   /// @ref binutils gold, dynobj.cc:1165
   unsigned getGNUHashMaskbitslog2(unsigned pNumOfSymbols) const;
-
-  /// emitSymbol32 - emit an ELF32 symbol
-  void emitSymbol32(llvm::ELF::Elf32_Sym& pSym32,
-                    LDSymbol& pSymbol,
-                    char* pStrtab,
-                    size_t pStrtabsize,
-                    size_t pSymtabIdx);
-
-  /// emitSymbol64 - emit an ELF64 symbol
-  void emitSymbol64(llvm::ELF::Elf64_Sym& pSym64,
-                    LDSymbol& pSymbol,
-                    char* pStrtab,
-                    size_t pStrtabsize,
-                    size_t pSymtabIdx);
 
 private:
   /// createProgramHdrs - base on output sections to create the program headers
@@ -476,13 +446,15 @@ protected:
     }
   };
 
-  typedef HashEntry<LDSymbol*, size_t, SymCompare> SymHashEntryType;
+  typedef HashEntry<const LDSymbol*, size_t, SymCompare> SymHashEntryType;
   typedef HashTable<SymHashEntryType,
                     SymPtrHash,
                     EntryFactory<SymHashEntryType> > HashTableType;
 
 
 protected:
+  GenericELFReaderWriter *m_ELFReaderWriter;
+
   ELFObjectReader* m_pObjectReader;
 
   // -----  file formats  ----- //

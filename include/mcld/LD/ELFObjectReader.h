@@ -18,9 +18,9 @@ class Module;
 class Input;
 class IRBuilder;
 class GNULDBackend;
-class ELFReaderIF;
 class EhFrameReader;
 class LinkerConfig;
+class GenericELFReaderWriter;
 
 /** \lclass ELFObjectReader
  *  \brief ELFObjectReader reads target-independent parts of ELF object file
@@ -36,9 +36,8 @@ public:
   typedef Flags<ReadFlagType> ReadFlag;
 
 public:
-  ELFObjectReader(GNULDBackend& pBackend,
-                  IRBuilder& pBuilder,
-                  const LinkerConfig& pConfig);
+  ELFObjectReader(const GenericELFReaderWriter &pELFReader,
+                  const LinkerConfig &pConfig, IRBuilder &pBuilder);
 
   ~ELFObjectReader();
 
@@ -46,24 +45,23 @@ public:
   bool isMyFormat(Input &pFile, bool &pContinue) const;
 
   // -----  readers  ----- //
-  bool readHeader(Input& pFile);
+  bool readHeader(Input &pFile);
 
-  virtual bool readSections(Input& pFile);
+  virtual bool readSections(Input &pFile);
 
-  virtual bool readSymbols(Input& pFile);
+  virtual bool readSymbols(Input &pFile);
 
   /// readRelocations - read relocation sections
   ///
   /// This function should be called after symbol resolution.
-  virtual bool readRelocations(Input& pFile);
+  virtual bool readRelocations(Input &pFile);
 
 private:
-  ELFReaderIF* m_pELFReader;
-  EhFrameReader* m_pEhFrameReader;
-  IRBuilder& m_Builder;
+  const GenericELFReaderWriter &m_ELFReaderWriter;
+  EhFrameReader *m_pEhFrameReader;
+  IRBuilder &m_Builder;
   ReadFlag m_ReadFlag;
-  GNULDBackend& m_Backend;
-  const LinkerConfig& m_Config;
+  const LinkerConfig &m_Config;
 };
 
 } // namespace of mcld

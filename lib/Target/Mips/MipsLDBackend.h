@@ -207,8 +207,6 @@ private:
 
   bool initRelocator();
   void initTargetSections(Module& pModule, ObjectBuilder& pBuilder);
-  size_t getRelEntrySize();
-  size_t getRelaEntrySize();
 };
 
 /** \class Mips64GNULDBackend
@@ -224,8 +222,6 @@ private:
 
   bool initRelocator();
   void initTargetSections(Module& pModule, ObjectBuilder& pBuilder);
-  size_t getRelEntrySize();
-  size_t getRelaEntrySize();
 };
 
 } // namespace of mcld

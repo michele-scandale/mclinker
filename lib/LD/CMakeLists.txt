@@ -23,8 +23,6 @@ add_mcld_library(MCLDLD
   ELFObjectReader.cpp
   ELFObjectWriter.cpp
   ELFReaderWriter.cpp
-  ELFReader.cpp
-  ELFReaderIf.cpp
   ELFSegment.cpp
   ELFSegmentFactory.cpp
   GarbageCollection.cpp

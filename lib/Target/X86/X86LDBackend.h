@@ -108,14 +108,6 @@ public:
 protected:
   void defineGOTSymbol(IRBuilder& pBuilder, Fragment&);
 
-  /// getRelEntrySize - the size in BYTE of rel type relocation
-  size_t getRelEntrySize()
-  { return m_RelEntrySize; }
-
-  /// getRelEntrySize - the size in BYTE of rela type relocation
-  size_t getRelaEntrySize()
-  { return m_RelaEntrySize; }
-
 private:
   /// doCreateProgramHdrs - backend can implement this function to create the
   /// target-dependent segments
@@ -146,9 +138,6 @@ protected:
 
   X86ELFDynamic* m_pDynamic;
   LDSymbol* m_pGOTSymbol;
-
-  size_t m_RelEntrySize;
-  size_t m_RelaEntrySize;
 
   Relocation::Type m_CopyRel;
   Relocation::Type m_PointerRel;

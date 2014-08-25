@@ -12,7 +12,8 @@
 #include <llvm/Support/ELF.h>
 #include <mcld/IRBuilder.h>
 #include <mcld/TargetOptions.h>
-#include <mcld/LD/ELFReader.h>
+#include <mcld/LD/LDContext.h>
+#include <mcld/LD/ELFReaderWriter.h>
 #include <mcld/MC/Input.h>
 #include <mcld/Support/Path.h>
 #include <mcld/Support/MemoryArea.h>
@@ -37,12 +38,11 @@ ELFReaderTest::ELFReaderTest()
   m_pScript = new LinkerScript();
   m_pInfo = new X86_64GNUInfo( m_pConfig->targets().triple() );
   m_pLDBackend = new X86_64GNULDBackend( *m_pConfig, m_pInfo );
-  m_pELFReader = new ELFReader<64, true>( *m_pLDBackend );
+  m_pELFReaderWriter = new ELFReaderWriter<64, llvm::support::little>(*m_pLDBackend, *m_pConfig);
   m_pModule = new Module(*m_pScript);
   m_pIRBuilder = new IRBuilder( *m_pModule, *m_pConfig);
-  m_pELFObjReader = new ELFObjectReader(*m_pLDBackend,
-                                        *m_pIRBuilder,
-                                        *m_pConfig);
+  m_pELFObjReader = new ELFObjectReader(*m_pELFReaderWriter, *m_pConfig,
+                                        *m_pIRBuilder);
 }
 
 // Destructor can do clean-up work that doesn't throw exceptions here.
@@ -50,7 +50,7 @@ ELFReaderTest::~ELFReaderTest()
 {
   delete m_pConfig;
   delete m_pLDBackend;
-  delete m_pELFReader;
+  delete m_pELFReaderWriter;
   delete m_pScript;
   delete m_pModule;
   delete m_pIRBuilder;
@@ -67,11 +67,11 @@ void ELFReaderTest::SetUp()
   ASSERT_TRUE(NULL!=m_pInput);
 
   ASSERT_TRUE(m_pInput->hasMemArea());
-  size_t hdr_size = m_pELFReader->getELFHeaderSize();
+  size_t hdr_size = m_pELFReaderWriter->getHeaderSize();
   llvm::StringRef region = m_pInput->memArea()->request(m_pInput->fileOffset(),
                                                         hdr_size);
   const char* ELF_hdr = region.begin();
-  bool shdr_result = m_pELFReader->readSectionHeaders(*m_pInput, ELF_hdr);
+  bool shdr_result = m_pELFReaderWriter->readSectionHeaders(ELF_hdr, *m_pInput);
   ASSERT_TRUE(shdr_result);
 }
 
@@ -116,8 +116,8 @@ TEST_F( ELFReaderTest, read_symbol_and_rela )
   llvm::StringRef strtab_region = m_pInput->memArea()->request(
       m_pInput->fileOffset() + strtab_shdr->offset(), strtab_shdr->size());
   const char* strtab = strtab_region.begin();
-  bool result = m_pELFReader->readSymbols(*m_pInput, *m_pIRBuilder,
-                                          symtab_region, strtab);
+  bool result = m_pELFReaderWriter->readSymbols(symtab_region, strtab,
+                                                *m_pInput, *m_pIRBuilder);
   ASSERT_TRUE(result);
   ASSERT_EQ("hello.c", std::string(m_pInput->context()->getSymbol(1)->name()));
   ASSERT_EQ("puts", std::string(m_pInput->context()->getSymbol(10)->name()));
@@ -135,7 +135,7 @@ TEST_F( ELFReaderTest, read_symbol_and_rela )
   IRBuilder::CreateRelocData(**rs); /// create relocation data for the header
 
   ASSERT_EQ(llvm::ELF::SHT_RELA, (*rs)->type());
-  ASSERT_TRUE(m_pELFReader->readRela(*m_pInput, **rs, region));
+  ASSERT_TRUE(m_pELFReaderWriter->readRelocation(region, *m_pInput, **rs));
 
   const RelocData::RelocationListType &rRelocs =
                           (*rs)->getRelocData()->getRelocationList();

@@ -49,16 +49,12 @@ X86GNULDBackend::X86GNULDBackend(const LinkerConfig& pConfig,
   assert (arch == llvm::Triple::x86 || arch == llvm::Triple::x86_64);
   if (arch == llvm::Triple::x86 ||
       pConfig.targets().triple().getEnvironment() == llvm::Triple::GNUX32) {
-    m_RelEntrySize = 8;
-    m_RelaEntrySize = 12;
     if (arch == llvm::Triple::x86)
       m_PointerRel = llvm::ELF::R_386_32;
     else
       m_PointerRel = llvm::ELF::R_X86_64_32;
   }
   else {
-    m_RelEntrySize = 16;
-    m_RelaEntrySize = 24;
     m_PointerRel = llvm::ELF::R_X86_64_64;
   }
 }

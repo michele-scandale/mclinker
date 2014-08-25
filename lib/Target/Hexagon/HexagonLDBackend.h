@@ -151,14 +151,6 @@ protected:
   void defineGOTSymbol(IRBuilder& pBuilder, Fragment&);
 
 private:
-  /// getRelEntrySize - the size in BYTE of rela type relocation
-  size_t getRelEntrySize()
-  { return 0; }
-
-  /// getRelaEntrySize - the size in BYTE of rela type relocation
-  size_t getRelaEntrySize()
-  { return 12; }
-
   /// doCreateProgramHdrs - backend can implement this function to create the
   /// target-dependent segments
   void doCreateProgramHdrs(Module& pModule);

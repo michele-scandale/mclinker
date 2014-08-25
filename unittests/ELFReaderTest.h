@@ -12,15 +12,10 @@
 #include <gtest.h>
 #include <mcld/LinkerConfig.h>
 #include <mcld/LinkerScript.h>
-#include <mcld/LD/ELFReaderIf.h>
-#include <mcld/LD/ELFReader.h>
+#include <mcld/LD/ELFReaderWriter.h>
 #include <mcld/LD/ELFObjectReader.h>
 #include <mcld/Target/GNULDBackend.h>
 #include <mcld/MC/InputBuilder.h>
-
-namespace mcld {
-  template<> class ELFReader<64, true>;
-} // namespace for mcld
 
 namespace mcldtest
 {
@@ -46,7 +41,7 @@ protected:
   mcld::LinkerScript* m_pScript;
   mcld::GNUInfo* m_pInfo;
   mcld::GNULDBackend* m_pLDBackend;
-  mcld::ELFReaderIF* m_pELFReader;
+  mcld::GenericELFReaderWriter* m_pELFReaderWriter;
   mcld::Module* m_pModule;
   mcld::IRBuilder* m_pIRBuilder;
   mcld::ELFObjectReader* m_pELFObjReader;

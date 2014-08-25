@@ -16,7 +16,7 @@ class Input;
 class LinkerConfig;
 class IRBuilder;
 class GNULDBackend;
-class ELFReaderIF;
+class GenericELFReaderWriter;
 
 /** \class ELFDynObjReader
  *  \brief ELFDynObjReader reads ELF dynamic shared objects.
@@ -25,9 +25,9 @@ class ELFReaderIF;
 class ELFDynObjReader : public DynObjReader
 {
 public:
-  ELFDynObjReader(GNULDBackend& pBackend,
-                  IRBuilder& pBuilder,
-                  const LinkerConfig& pConfig);
+  ELFDynObjReader(const GenericELFReaderWriter &pELFReaderWriter,
+                  const LinkerConfig& pConfig,
+                  IRBuilder& pBuilder);
   ~ELFDynObjReader();
 
   // -----  observers  ----- //
@@ -39,7 +39,7 @@ public:
   bool readSymbols(Input& pInput);
 
 private:
-  ELFReaderIF *m_pELFReader;
+  const GenericELFReaderWriter &m_ELFReaderWriter;
   IRBuilder& m_Builder;
 };
 

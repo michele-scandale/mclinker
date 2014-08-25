@@ -857,16 +857,6 @@ void Mips32GNULDBackend::initTargetSections(Module& pModule,
   m_pPLT = new MipsPLT(plt);
 }
 
-size_t Mips32GNULDBackend::getRelEntrySize()
-{
-  return 8;
-}
-
-size_t Mips32GNULDBackend::getRelaEntrySize()
-{
-  return 12;
-}
-
 //===----------------------------------------------------------------------===//
 // Mips64GNULDBackend
 //===----------------------------------------------------------------------===//
@@ -904,16 +894,6 @@ void Mips64GNULDBackend::initTargetSections(Module& pModule,
   // initialize .plt
   LDSection& plt = fileFormat->getPLT();
   m_pPLT = new MipsPLT(plt);
-}
-
-size_t Mips64GNULDBackend::getRelEntrySize()
-{
-  return 16;
-}
-
-size_t Mips64GNULDBackend::getRelaEntrySize()
-{
-  return 24;
 }
 
 //===----------------------------------------------------------------------===//

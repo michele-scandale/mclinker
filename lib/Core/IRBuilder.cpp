@@ -8,11 +8,13 @@
 //===----------------------------------------------------------------------===//
 #include <mcld/IRBuilder.h>
 #include <mcld/LinkerScript.h>
-#include <mcld/LD/ELFReader.h>
-#include <mcld/Object/ObjectBuilder.h>
-#include <mcld/LD/SectionData.h>
 #include <mcld/LD/EhFrame.h>
+#include <mcld/LD/LDContext.h>
 #include <mcld/LD/RelocData.h>
+#include <mcld/LD/SectionData.h>
+#include <mcld/MC/Attribute.h>
+#include <mcld/Module.h>
+#include <mcld/Object/ObjectBuilder.h>
 #include <mcld/Support/MsgHandling.h>
 #include <mcld/Support/MemoryArea.h>
 #include <mcld/Support/ELF.h>

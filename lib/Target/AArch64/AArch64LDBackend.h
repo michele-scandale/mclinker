@@ -129,14 +129,6 @@ private:
   /// initTargetStubs
   bool initTargetStubs();
 
-  /// getRelEntrySize - the size in BYTE of rel type relocation
-  size_t getRelEntrySize()
-  { return 16; }
-
-  /// getRelEntrySize - the size in BYTE of rela type relocation
-  size_t getRelaEntrySize()
-  { return 24; }
-
   /// doCreateProgramHdrs - backend can implement this function to create the
   /// target-dependent segments
   virtual void doCreateProgramHdrs(Module& pModule);

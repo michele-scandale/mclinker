@@ -43,7 +43,7 @@
 #include <mcld/MC/Attribute.h>
 
 #include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Host.h>
+#include <llvm/Support/Endian.h>
 
 #include <algorithm>
 #include <cstring>
@@ -79,6 +79,7 @@ using namespace mcld;
 //===----------------------------------------------------------------------===//
 GNULDBackend::GNULDBackend(const LinkerConfig& pConfig, GNUInfo* pInfo)
   : TargetLDBackend(pConfig),
+    m_ELFReaderWriter(NULL),
     m_pObjectReader(NULL),
     m_pDynObjFileFormat(NULL),
     m_pExecFileFormat(NULL),
@@ -127,25 +128,12 @@ GNULDBackend::~GNULDBackend()
   delete m_pAttribute;
   delete m_pBRIslandFactory;
   delete m_pStubFactory;
+  delete m_ELFReaderWriter;
 }
 
 size_t GNULDBackend::sectionStartOffset() const
 {
-  if (LinkerConfig::Binary == config().codeGenType())
-    return 0x0;
-
-  switch (config().targets().bitclass()) {
-    case 32u:
-      return sizeof(llvm::ELF::Elf32_Ehdr) +
-             elfSegmentTable().size() * sizeof(llvm::ELF::Elf32_Phdr);
-    case 64u:
-      return sizeof(llvm::ELF::Elf64_Ehdr) +
-             elfSegmentTable().size() * sizeof(llvm::ELF::Elf64_Phdr);
-    default:
-      fatal(diag::unsupported_bitclass) << config().targets().triple().str()
-                                        << config().targets().bitclass();
-      return 0;
-  }
+  return m_ELFReaderWriter->sectionStartOffset();
 }
 
 uint64_t GNULDBackend::getSegmentStartAddr(const LinkerScript& pScript) const
@@ -167,15 +155,17 @@ GNULDBackend::createArchiveReader(Module& pModule)
   return new GNUArchiveReader(pModule, *m_pObjectReader);
 }
 
-ELFObjectReader* GNULDBackend::createObjectReader(IRBuilder& pBuilder)
+ELFObjectReader* GNULDBackend::createObjectReader(IRBuilder &pBuilder)
 {
-  m_pObjectReader = new ELFObjectReader(*this, pBuilder, config());
+  if (!m_ELFReaderWriter)
+    m_ELFReaderWriter = GenericELFReaderWriter::create(*this, config());
+  m_pObjectReader = new ELFObjectReader(*m_ELFReaderWriter, config(), pBuilder);
   return m_pObjectReader;
 }
 
 ELFDynObjReader* GNULDBackend::createDynObjReader(IRBuilder& pBuilder)
 {
-  return new ELFDynObjReader(*this, pBuilder, config());
+  return new ELFDynObjReader(*m_ELFReaderWriter, config(), pBuilder);
 }
 
 ELFBinaryReader* GNULDBackend::createBinaryReader(IRBuilder& pBuilder)
@@ -185,7 +175,9 @@ ELFBinaryReader* GNULDBackend::createBinaryReader(IRBuilder& pBuilder)
 
 ELFObjectWriter* GNULDBackend::createWriter()
 {
-  return new ELFObjectWriter(*this, config());
+  if (!m_ELFReaderWriter)
+    m_ELFReaderWriter = GenericELFReaderWriter::create(*this, config());
+  return new ELFObjectWriter(*m_ELFReaderWriter);
 }
 
 bool GNULDBackend::initStdSections(ObjectBuilder& pBuilder)
@@ -914,241 +906,6 @@ void GNULDBackend::sizeNamePools(Module& pModule)
   } // end of switch
 }
 
-/// emitSymbol32 - emit an ELF32 symbol
-void GNULDBackend::emitSymbol32(llvm::ELF::Elf32_Sym& pSym,
-                                LDSymbol& pSymbol,
-                                char* pStrtab,
-                                size_t pStrtabsize,
-                                size_t pSymtabIdx)
-{
-   // FIXME: check the endian between host and target
-   // write out symbol
-   if (hasEntryInStrTab(pSymbol)) {
-     pSym.st_name  = pStrtabsize;
-     strcpy((pStrtab + pStrtabsize), pSymbol.name());
-   }
-   else {
-     pSym.st_name  = 0;
-   }
-   pSym.st_value = pSymbol.value();
-   pSym.st_size  = getSymbolSize(pSymbol);
-   pSym.st_info  = getSymbolInfo(pSymbol);
-   pSym.st_other = pSymbol.visibility();
-   pSym.st_shndx = getSymbolShndx(pSymbol);
-}
-
-/// emitSymbol64 - emit an ELF64 symbol
-void GNULDBackend::emitSymbol64(llvm::ELF::Elf64_Sym& pSym,
-                                LDSymbol& pSymbol,
-                                char* pStrtab,
-                                size_t pStrtabsize,
-                                size_t pSymtabIdx)
-{
-   // FIXME: check the endian between host and target
-   // write out symbol
-   if (hasEntryInStrTab(pSymbol)) {
-     pSym.st_name  = pStrtabsize;
-     strcpy((pStrtab + pStrtabsize), pSymbol.name());
-   }
-   else {
-     pSym.st_name  = 0;
-   }
-   pSym.st_value = pSymbol.value();
-   pSym.st_size  = getSymbolSize(pSymbol);
-   pSym.st_info  = getSymbolInfo(pSymbol);
-   pSym.st_other = pSymbol.visibility();
-   pSym.st_shndx = getSymbolShndx(pSymbol);
-}
-
-/// emitRegNamePools - emit regular name pools - .symtab, .strtab
-///
-/// the size of these tables should be computed before layout
-/// layout should computes the start offset of these tables
-void GNULDBackend::emitRegNamePools(const Module& pModule,
-                                    FileOutputBuffer& pOutput)
-{
-  ELFFileFormat* file_format = getOutputFormat();
-  if (!file_format->hasSymTab())
-    return;
-
-  LDSection& symtab_sect = file_format->getSymTab();
-  LDSection& strtab_sect = file_format->getStrTab();
-
-  MemoryRegion symtab_region = pOutput.request(symtab_sect.offset(),
-                                               symtab_sect.size());
-  MemoryRegion strtab_region = pOutput.request(strtab_sect.offset(),
-                                               strtab_sect.size());
-
-  // set up symtab_region
-  llvm::ELF::Elf32_Sym* symtab32 = NULL;
-  llvm::ELF::Elf64_Sym* symtab64 = NULL;
-  if (config().targets().is32Bits())
-    symtab32 = (llvm::ELF::Elf32_Sym*)symtab_region.begin();
-  else if (config().targets().is64Bits())
-    symtab64 = (llvm::ELF::Elf64_Sym*)symtab_region.begin();
-  else {
-    fatal(diag::unsupported_bitclass) << config().targets().triple().str()
-                                      << config().targets().bitclass();
-  }
-
-  // set up strtab_region
-  char* strtab = (char*)strtab_region.begin();
-
-  // emit the first ELF symbol
-  if (config().targets().is32Bits())
-    emitSymbol32(symtab32[0], *LDSymbol::Null(), strtab, 0, 0);
-  else
-    emitSymbol64(symtab64[0], *LDSymbol::Null(), strtab, 0, 0);
-
-  bool sym_exist = false;
-  HashTableType::entry_type* entry = NULL;
-  if (LinkerConfig::Object == config().codeGenType()) {
-    entry = m_pSymIndexMap->insert(LDSymbol::Null(), sym_exist);
-    entry->setValue(0);
-  }
-
-  size_t symIdx = 1;
-  size_t strtabsize = 1;
-
-  const Module::SymbolTable& symbols = pModule.getSymbolTable();
-  Module::const_sym_iterator symbol, symEnd;
-
-  symEnd = symbols.end();
-  for (symbol = symbols.begin(); symbol != symEnd; ++symbol) {
-    if (LinkerConfig::Object == config().codeGenType()) {
-      entry = m_pSymIndexMap->insert(*symbol, sym_exist);
-      entry->setValue(symIdx);
-    }
-    if (config().targets().is32Bits())
-      emitSymbol32(symtab32[symIdx], **symbol, strtab, strtabsize, symIdx);
-    else
-      emitSymbol64(symtab64[symIdx], **symbol, strtab, strtabsize, symIdx);
-    ++symIdx;
-    if (hasEntryInStrTab(**symbol))
-      strtabsize += (*symbol)->nameSize() + 1;
-  }
-}
-
-/// emitDynNamePools - emit dynamic name pools - .dyntab, .dynstr, .hash
-///
-/// the size of these tables should be computed before layout
-/// layout should computes the start offset of these tables
-void GNULDBackend::emitDynNamePools(Module& pModule, FileOutputBuffer& pOutput)
-{
-  ELFFileFormat* file_format = getOutputFormat();
-  if (!file_format->hasDynSymTab() ||
-      !file_format->hasDynStrTab() ||
-      !file_format->hasDynamic())
-    return;
-
-  bool sym_exist = false;
-  HashTableType::entry_type* entry = 0;
-
-  LDSection& symtab_sect = file_format->getDynSymTab();
-  LDSection& strtab_sect = file_format->getDynStrTab();
-  LDSection& dyn_sect    = file_format->getDynamic();
-
-  MemoryRegion symtab_region = pOutput.request(symtab_sect.offset(),
-                                               symtab_sect.size());
-  MemoryRegion strtab_region = pOutput.request(strtab_sect.offset(),
-                                               strtab_sect.size());
-  MemoryRegion dyn_region = pOutput.request(dyn_sect.offset(),
-                                            dyn_sect.size());
-  // set up symtab_region
-  llvm::ELF::Elf32_Sym* symtab32 = NULL;
-  llvm::ELF::Elf64_Sym* symtab64 = NULL;
-  if (config().targets().is32Bits())
-    symtab32 = (llvm::ELF::Elf32_Sym*)symtab_region.begin();
-  else if (config().targets().is64Bits())
-    symtab64 = (llvm::ELF::Elf64_Sym*)symtab_region.begin();
-  else {
-    fatal(diag::unsupported_bitclass) << config().targets().triple().str()
-                                      << config().targets().bitclass();
-  }
-
-  // set up strtab_region
-  char* strtab = (char*)strtab_region.begin();
-
-  // emit the first ELF symbol
-  if (config().targets().is32Bits())
-    emitSymbol32(symtab32[0], *LDSymbol::Null(), strtab, 0, 0);
-  else
-    emitSymbol64(symtab64[0], *LDSymbol::Null(), strtab, 0, 0);
-
-  size_t symIdx = 1;
-  size_t strtabsize = 1;
-
-  Module::SymbolTable& symbols = pModule.getSymbolTable();
-  // emit .gnu.hash
-  if (GeneralOptions::GNU  == config().options().getHashStyle() ||
-      GeneralOptions::Both == config().options().getHashStyle())
-    emitGNUHashTab(symbols, pOutput);
-
-  // emit .hash
-  if (GeneralOptions::SystemV == config().options().getHashStyle() ||
-      GeneralOptions::Both == config().options().getHashStyle())
-    emitELFHashTab(symbols, pOutput);
-
-  // emit .dynsym, and .dynstr (emit LocalDyn and Dynamic category)
-  Module::const_sym_iterator symbol, symEnd = symbols.dynamicEnd();
-  for (symbol = symbols.localDynBegin(); symbol != symEnd; ++symbol) {
-    if (config().targets().is32Bits())
-      emitSymbol32(symtab32[symIdx], **symbol, strtab, strtabsize, symIdx);
-    else
-      emitSymbol64(symtab64[symIdx], **symbol, strtab, strtabsize, symIdx);
-    // maintain output's symbol and index map
-    entry = m_pSymIndexMap->insert(*symbol, sym_exist);
-    entry->setValue(symIdx);
-    // sum up counters
-    ++symIdx;
-    if (hasEntryInStrTab(**symbol))
-      strtabsize += (*symbol)->nameSize() + 1;
-  }
-
-  // emit DT_NEED
-  // add DT_NEED strings into .dynstr
-  ELFDynamic::iterator dt_need = dynamic().needBegin();
-  Module::const_lib_iterator lib, libEnd = pModule.lib_end();
-  for (lib = pModule.lib_begin(); lib != libEnd; ++lib) {
-    if (!(*lib)->attribute()->isAsNeeded() || (*lib)->isNeeded()) {
-      strcpy((strtab + strtabsize), (*lib)->name().c_str());
-      (*dt_need)->setValue(llvm::ELF::DT_NEEDED, strtabsize);
-      strtabsize += (*lib)->name().size() + 1;
-      ++dt_need;
-    }
-  }
-
-  if (!config().options().getRpathList().empty()) {
-    if (!config().options().hasNewDTags())
-      (*dt_need)->setValue(llvm::ELF::DT_RPATH, strtabsize);
-    else
-      (*dt_need)->setValue(llvm::ELF::DT_RUNPATH, strtabsize);
-    ++dt_need;
-
-    GeneralOptions::const_rpath_iterator rpath,
-      rpathEnd = config().options().rpath_end();
-    for (rpath = config().options().rpath_begin(); rpath != rpathEnd; ++rpath) {
-      memcpy((strtab + strtabsize), (*rpath).data(), (*rpath).size());
-      strtabsize += (*rpath).size();
-      strtab[strtabsize++] = (rpath + 1 == rpathEnd ? '\0' : ':');
-    }
-  }
-
-  // initialize value of ELF .dynamic section
-  if (LinkerConfig::DynObj == config().codeGenType()) {
-    // set pointer to SONAME entry in dynamic string table.
-    dynamic().applySoname(strtabsize);
-  }
-  dynamic().applyEntries(*file_format);
-  dynamic().emit(dyn_sect, dyn_region);
-
-  // emit soname
-  if (LinkerConfig::DynObj == config().codeGenType()) {
-    strcpy((strtab + strtabsize), config().options().soname().c_str());
-    strtabsize += config().options().soname().size() + 1;
-  }
-}
-
 /// emitELFHashTab - emit .hash
 void GNULDBackend::emitELFHashTab(const Module::SymbolTable& pSymtab,
                                   FileOutputBuffer& pOutput)
@@ -1327,22 +1084,6 @@ void GNULDBackend::sizeInterp()
   interp.setSize(std::strlen(dyld_name) + 1);
 }
 
-/// emitInterp - emit the .interp
-void GNULDBackend::emitInterp(FileOutputBuffer& pOutput)
-{
-  if (getOutputFormat()->hasInterp()) {
-    const LDSection& interp = getOutputFormat()->getInterp();
-    MemoryRegion region = pOutput.request(interp.offset(), interp.size());
-    const char* dyld_name;
-    if (config().options().hasDyld())
-      dyld_name = config().options().dyld().c_str();
-    else
-      dyld_name = m_pInfo->dyld();
-
-    std::memcpy(region.begin(), dyld_name, interp.size());
-  }
-}
-
 bool GNULDBackend::hasEntryInStrTab(const LDSymbol& pSym) const
 {
   return ResolveInfo::Section != pSym.type();
@@ -1452,72 +1193,6 @@ unsigned int GNULDBackend::getSectionOrder(const LDSection& pSectHdr) const
     default:
       return SHO_UNDEFINED;
   }
-}
-
-/// getSymbolSize
-uint64_t GNULDBackend::getSymbolSize(const LDSymbol& pSymbol) const
-{
-  // @ref Google gold linker: symtab.cc: 2780
-  // undefined and dynamic symbols should have zero size.
-  if (pSymbol.isDyn() || pSymbol.desc() == ResolveInfo::Undefined)
-    return 0x0;
-  return pSymbol.resolveInfo()->size();
-}
-
-/// getSymbolInfo
-uint64_t GNULDBackend::getSymbolInfo(const LDSymbol& pSymbol) const
-{
-  // set binding
-  uint8_t bind = 0x0;
-  if (pSymbol.resolveInfo()->isLocal())
-    bind = llvm::ELF::STB_LOCAL;
-  else if (pSymbol.resolveInfo()->isGlobal())
-    bind = llvm::ELF::STB_GLOBAL;
-  else if (pSymbol.resolveInfo()->isWeak())
-    bind = llvm::ELF::STB_WEAK;
-  else if (pSymbol.resolveInfo()->isAbsolute()) {
-    // (Luba) Is a absolute but not global (weak or local) symbol meaningful?
-    bind = llvm::ELF::STB_GLOBAL;
-  }
-
-  if (config().codeGenType() != LinkerConfig::Object &&
-      (pSymbol.visibility() == llvm::ELF::STV_INTERNAL ||
-      pSymbol.visibility() == llvm::ELF::STV_HIDDEN))
-    bind = llvm::ELF::STB_LOCAL;
-
-  uint32_t type = pSymbol.resolveInfo()->type();
-  // if the IndirectFunc symbol (i.e., STT_GNU_IFUNC) is from dynobj, change
-  // its type to Function
-  if (type == ResolveInfo::IndirectFunc && pSymbol.isDyn())
-    type = ResolveInfo::Function;
-  return (type | (bind << 4));
-}
-
-/// getSymbolValue - this function is called after layout()
-uint64_t GNULDBackend::getSymbolValue(const LDSymbol& pSymbol) const
-{
-  if (pSymbol.isDyn())
-    return 0x0;
-
-  return pSymbol.value();
-}
-
-/// getSymbolShndx - this function is called after layout()
-uint64_t
-GNULDBackend::getSymbolShndx(const LDSymbol& pSymbol) const
-{
-  if (pSymbol.resolveInfo()->isAbsolute())
-    return llvm::ELF::SHN_ABS;
-  if (pSymbol.resolveInfo()->isCommon())
-    return llvm::ELF::SHN_COMMON;
-  if (pSymbol.resolveInfo()->isUndef() || pSymbol.isDyn())
-    return llvm::ELF::SHN_UNDEF;
-
-  if (pSymbol.resolveInfo()->isDefine() && !pSymbol.hasFragRef())
-    return llvm::ELF::SHN_ABS;
-
-  assert(pSymbol.hasFragRef() && "symbols must have fragment reference to get its index");
-  return pSymbol.fragRef()->frag()->getParent()->getSection().index();
 }
 
 /// getSymbolIdx - called by emitRelocation to get the ouput symbol table index
@@ -2970,7 +2645,7 @@ void GNULDBackend::mapSymbol(const LDSymbol *pSym, size_t pSymIdx) {
   if (LinkerConfig::Object == config().codeGenType()) {
     bool sym_exist = false;
     HashTableType::entry_type *entry =
-      m_pSymIndexMap->insert(const_cast<LDSymbol*>(pSym), sym_exist);
+      m_pSymIndexMap->insert(pSym, sym_exist);
     entry->setValue(pSymIdx);
   }
 }
@@ -2978,8 +2653,16 @@ void GNULDBackend::mapSymbol(const LDSymbol *pSym, size_t pSymIdx) {
 void GNULDBackend::mapDynamicSymbol(const LDSymbol *pSym, size_t pSymIdx) {
   bool sym_exist = false;
   HashTableType::entry_type *entry =
-    m_pSymIndexMap->insert(const_cast<LDSymbol*>(pSym), sym_exist);
+    m_pSymIndexMap->insert(pSym, sym_exist);
   entry->setValue(pSymIdx);
+}
+
+size_t GNULDBackend::getRelEntrySize() const {
+  return m_ELFReaderWriter->getRelSize();
+}
+
+size_t GNULDBackend::getRelaEntrySize() const {
+  return m_ELFReaderWriter->getRelaSize();
 }
 
 bool GNULDBackend::DynsymCompare::needGNUHash(const LDSymbol& X) const
