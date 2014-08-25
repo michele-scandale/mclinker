@@ -522,7 +522,10 @@ void ELFObjectWriter::emitRel(const LinkerConfig& pConfig,
       r_sym = static_cast<ElfXX_Word>(
               target().getSymbolIdx(relocation->symInfo()->outSymbol()));
 
-    target().emitRelocation(*rel, relocation->type(), r_sym, r_offset);
+    ElfXX_Addr r_info = 0;
+    target().encodeRelocationInfo(relocation->type(), r_sym, r_info);
+    rel->r_info = r_info;
+    rel->r_offset = r_offset;
   }
 }
 
@@ -565,8 +568,11 @@ void ELFObjectWriter::emitRela(const LinkerConfig& pConfig,
       r_sym = static_cast<ElfXX_Word>(
               target().getSymbolIdx(relocation->symInfo()->outSymbol()));
 
-    target().emitRelocation(*rel, relocation->type(),
-                            r_sym, r_offset, relocation->addend());
+    ElfXX_Addr r_info = 0;
+    target().encodeRelocationInfo(relocation->type(), r_sym, r_info);
+    rel->r_info = r_info;
+    rel->r_offset = r_offset;
+    rel->r_addend = relocation->addend();
   }
 }
 

@@ -157,57 +157,16 @@ private:
   /// initTargetStubs
   bool initTargetStubs();
 
-  /// readRelocation - read ELF32_Rel entry
-  bool readRelocation(const llvm::ELF::Elf32_Rel& pRel,
-                      Relocation::Type& pType,
-                      uint32_t& pSymIdx,
-                      uint32_t& pOffset) const;
+  using GNULDBackend::decodeRelocationInfo;
+  using GNULDBackend::encodeRelocationInfo;
 
-  /// readRelocation - read ELF32_Rela entry
-  bool readRelocation(const llvm::ELF::Elf32_Rela& pRel,
-                      Relocation::Type& pType,
-                      uint32_t& pSymIdx,
-                      uint32_t& pOffset,
-                      int32_t& pAddend) const;
+  /// decodeRelocationInfo - extract symbol index and relocation type.
+  bool decodeRelocationInfo(uint64_t r_info, uint32_t& pType,
+                            uint32_t& pSymIdx) const;
 
-  /// readRelocation - read ELF64_Rel entry
-  bool readRelocation(const llvm::ELF::Elf64_Rel& pRel,
-                      Relocation::Type& pType,
-                      uint32_t& pSymIdx,
-                      uint64_t& pOffset) const;
-
-  /// readRel - read ELF64_Rela entry
-  bool readRelocation(const llvm::ELF::Elf64_Rela& pRel,
-                      Relocation::Type& pType,
-                      uint32_t& pSymIdx,
-                      uint64_t& pOffset,
-                      int64_t& pAddend) const;
-
-  /// emitRelocation - write data to the ELF32_Rel entry
-  void emitRelocation(llvm::ELF::Elf32_Rel& pRel,
-                      Relocation::Type pType,
-                      uint32_t pSymIdx,
-                      uint32_t pOffset) const;
-
-  /// emitRelocation - write data to the ELF32_Rela entry
-  void emitRelocation(llvm::ELF::Elf32_Rela& pRel,
-                      Relocation::Type pType,
-                      uint32_t pSymIdx,
-                      uint32_t pOffset,
-                      int32_t pAddend) const;
-
-  /// emitRelocation - write data to the ELF64_Rel entry
-  void emitRelocation(llvm::ELF::Elf64_Rel& pRel,
-                      Relocation::Type pType,
-                      uint32_t pSymIdx,
-                      uint64_t pOffset) const;
-
-  /// emitRelocation - write data to the ELF64_Rela entry
-  void emitRelocation(llvm::ELF::Elf64_Rela& pRel,
-                      Relocation::Type pType,
-                      uint32_t pSymIdx,
-                      uint64_t pOffset,
-                      int64_t pAddend) const;
+  /// encodeRelocationInfo - combine symbol index and relocation type.
+  void encodeRelocationInfo(uint32_t pType, uint32_t pSymIdx,
+                            uint64_t &r_info) const;
 
 private:
   typedef llvm::DenseSet<const ResolveInfo*> ResolveInfoSetType;

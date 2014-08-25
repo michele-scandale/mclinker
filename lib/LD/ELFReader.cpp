@@ -224,7 +224,17 @@ bool ELFReader<32, true>::readRela(Input& pInput,
     uint32_t r_sym = 0x0;
     uint32_t r_offset = 0x0;
     int32_t  r_addend = 0;
-    if (!target().readRelocation(relaTab[idx], r_type, r_sym, r_offset, r_addend))
+    uint32_t r_info = 0;
+    if (llvm::sys::IsLittleEndianHost) {
+      r_offset = relaTab[idx].r_offset;
+      r_info = relaTab[idx].r_info;
+      r_addend = relaTab[idx].r_addend;
+    } else {
+      r_offset = mcld::bswap32(relaTab[idx].r_offset);
+      r_info = mcld::bswap32(relaTab[idx].r_info);
+      r_addend = mcld::bswap32(relaTab[idx].r_addend);
+    }
+    if (!target().decodeRelocationInfo(r_info, r_type, r_sym))
       return false;
 
     LDSymbol* symbol = pInput.context()->getSymbol(r_sym);
@@ -251,8 +261,15 @@ bool ELFReader<32, true>::readRel(Input& pInput,
     Relocation::Type r_type = 0x0;
     uint32_t r_sym = 0x0;
     uint32_t r_offset = 0x0;
-
-    if (!target().readRelocation(relTab[idx], r_type, r_sym, r_offset))
+    uint32_t r_info = 0;
+    if (llvm::sys::IsLittleEndianHost) {
+      r_offset = relTab[idx].r_offset;
+      r_info = relTab[idx].r_info;
+    } else {
+      r_offset = mcld::bswap32(relTab[idx].r_offset);
+      r_info = mcld::bswap32(relTab[idx].r_info);
+    }
+    if (!target().decodeRelocationInfo(r_info, r_type, r_sym))
       return false;
 
     LDSymbol* symbol = pInput.context()->getSymbol(r_sym);
@@ -744,10 +761,18 @@ bool ELFReader<64, true>::readRela(Input& pInput,
     uint32_t r_sym = 0x0;
     uint64_t r_offset = 0x0;
     int64_t  r_addend = 0;
-    if (!target().readRelocation(relaTab[idx],
-                                 r_type, r_sym, r_offset, r_addend)) {
-      return false;
+    uint64_t r_info = 0;
+    if (llvm::sys::IsLittleEndianHost) {
+      r_offset = relaTab[idx].r_offset;
+      r_info = relaTab[idx].r_info;
+      r_addend = relaTab[idx].r_addend;
+    } else {
+      r_offset = mcld::bswap64(relaTab[idx].r_offset);
+      r_info = mcld::bswap64(relaTab[idx].r_info);
+      r_addend = mcld::bswap64(relaTab[idx].r_addend);
     }
+    if (!target().decodeRelocationInfo(r_info, r_type, r_sym))
+      return false;
 
     LDSymbol* symbol = pInput.context()->getSymbol(r_sym);
     if (NULL == symbol) {
@@ -773,7 +798,15 @@ bool ELFReader<64, true>::readRel(Input& pInput,
     Relocation::Type r_type = 0x0;
     uint32_t r_sym = 0x0;
     uint64_t r_offset = 0x0;
-    if (!target().readRelocation(relTab[idx], r_type, r_sym, r_offset))
+    uint64_t r_info = 0;
+    if (llvm::sys::IsLittleEndianHost) {
+      r_offset = relTab[idx].r_offset;
+      r_info = relTab[idx].r_info;
+    } else {
+      r_offset = mcld::bswap64(relTab[idx].r_offset);
+      r_info = mcld::bswap64(relTab[idx].r_info);
+    }
+    if (!target().decodeRelocationInfo(r_info, r_type, r_sym))
       return false;
 
     LDSymbol* symbol = pInput.context()->getSymbol(r_sym);

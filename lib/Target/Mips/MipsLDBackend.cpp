@@ -784,113 +784,38 @@ bool MipsGNULDBackend::initTargetStubs()
   return true;
 }
 
-bool MipsGNULDBackend::readRelocation(const llvm::ELF::Elf32_Rel& pRel,
-                                      Relocation::Type& pType,
-                                      uint32_t& pSymIdx,
-                                      uint32_t& pOffset) const
+bool MipsGNULDBackend::decodeRelocationInfo(uint64_t r_info,
+                                            Relocation::Type& pType,
+                                            uint32_t& pSymIdx) const
 {
-  return GNULDBackend::readRelocation(pRel, pType, pSymIdx, pOffset);
-}
-
-bool MipsGNULDBackend::readRelocation(const llvm::ELF::Elf32_Rela& pRel,
-                                      Relocation::Type& pType,
-                                      uint32_t& pSymIdx,
-                                      uint32_t& pOffset,
-                                      int32_t& pAddend) const
-{
-  return GNULDBackend::readRelocation(pRel, pType, pSymIdx, pOffset, pAddend);
-}
-
-bool MipsGNULDBackend::readRelocation(const llvm::ELF::Elf64_Rel& pRel,
-                                      Relocation::Type& pType,
-                                      uint32_t& pSymIdx,
-                                      uint64_t& pOffset) const
-{
-  uint64_t r_info = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-  }
-  else {
-    pOffset = mcld::bswap64(pRel.r_offset);
-    r_info  = mcld::bswap64(pRel.r_info);
+  if (config().targets().isLittleEndian()) {
+    // MIPS 64 little endian (we do not support big endian now)
+    // has a "special" encoding of r_info relocation
+    // field. Instead of one 64 bit little endian number, it is a little
+    // endian 32 bit number followed by a 32 bit big endian number.
+    pType = mcld::bswap32(r_info >> 32);
+    pSymIdx = r_info & 0xffffffff;
+    return true;
   }
 
-  // MIPS 64 little endian (we do not support big endian now)
-  // has a "special" encoding of r_info relocation
-  // field. Instead of one 64 bit little endian number, it is a little
-  // endian 32 bit number followed by a 32 bit big endian number.
-  pType = mcld::bswap32(r_info >> 32);
-  pSymIdx = r_info & 0xffffffff;
-  return true;
+  return GNULDBackend::decodeRelocationInfo(r_info, pType, pSymIdx);
 }
 
-bool MipsGNULDBackend::readRelocation(const llvm::ELF::Elf64_Rela& pRel,
-                                      Relocation::Type& pType,
-                                      uint32_t& pSymIdx,
-                                      uint64_t& pOffset,
-                                      int64_t& pAddend) const
+void MipsGNULDBackend::encodeRelocationInfo(Relocation::Type pType,
+                                            uint32_t pSymIdx,
+                                            uint64_t &r_info) const
 {
-  uint64_t r_info = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-    pAddend = pRel.r_addend;
+  if (config().targets().isLittleEndian()) {
+    // MIPS 64 little endian (we do not support big endian now)
+    // has a "special" encoding of r_info relocation
+    // field. Instead of one 64 bit little endian number, it is a little
+    // endian 32 bit number followed by a 32 bit big endian number.
+    r_info = mcld::bswap32(pType);
+    r_info <<= 32;
+    r_info |= pSymIdx;
+    return;
   }
-  else {
-    pOffset = mcld::bswap64(pRel.r_offset);
-    r_info  = mcld::bswap64(pRel.r_info);
-    pAddend = mcld::bswap64(pRel.r_addend);
-  }
-
-  pType = mcld::bswap32(r_info >> 32);
-  pSymIdx = r_info & 0xffffffff;
-  return true;
-}
-
-void MipsGNULDBackend::emitRelocation(llvm::ELF::Elf32_Rel& pRel,
-                                      Relocation::Type pType,
-                                      uint32_t pSymIdx,
-                                      uint32_t pOffset) const
-{
-  GNULDBackend::emitRelocation(pRel, pType, pSymIdx, pOffset);
-}
-
-void MipsGNULDBackend::emitRelocation(llvm::ELF::Elf32_Rela& pRel,
-                                      Relocation::Type pType,
-                                      uint32_t pSymIdx,
-                                      uint32_t pOffset,
-                                      int32_t pAddend) const
-{
-  GNULDBackend::emitRelocation(pRel, pType, pSymIdx, pOffset, pAddend);
-}
-
-void MipsGNULDBackend::emitRelocation(llvm::ELF::Elf64_Rel& pRel,
-                                      Relocation::Type pType,
-                                      uint32_t pSymIdx,
-                                      uint64_t pOffset) const
-{
-  uint64_t r_info = mcld::bswap32(pType);
-  r_info <<= 32;
-  r_info |= pSymIdx;
-
-  pRel.r_info = r_info;
-  pRel.r_offset = pOffset;
-}
-
-void MipsGNULDBackend::emitRelocation(llvm::ELF::Elf64_Rela& pRel,
-                                      Relocation::Type pType,
-                                      uint32_t pSymIdx,
-                                      uint64_t pOffset,
-                                      int64_t pAddend) const
-{
-  uint64_t r_info = mcld::bswap32(pType);
-  r_info <<= 32;
-  r_info |= pSymIdx;
-
-  pRel.r_info = r_info;
-  pRel.r_offset = pOffset;
-  pRel.r_addend = pAddend;
+  GNULDBackend::encodeRelocationInfo(pType, pSymIdx, r_info);
 }
 
 //===----------------------------------------------------------------------===//

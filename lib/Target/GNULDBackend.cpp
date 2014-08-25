@@ -1687,138 +1687,42 @@ bool GNULDBackend::updateSectionFlags(LDSection& pTo, const LDSection& pFrom)
   return true;
 }
 
-/// readRelocation - read ELF32_Rel entry
-bool GNULDBackend::readRelocation(const llvm::ELF::Elf32_Rel& pRel,
-                                  Relocation::Type& pType,
-                                  uint32_t& pSymIdx,
-                                  uint32_t& pOffset) const
+/// decodeRelocationInfo - extract symbol index and relocation type.
+bool GNULDBackend::decodeRelocationInfo(uint32_t r_info,
+                                        Relocation::Type& pType,
+                                        uint32_t& pSymIdx) const
 {
-  uint32_t r_info = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-  }
-  else {
-    pOffset = mcld::bswap32(pRel.r_offset);
-    r_info  = mcld::bswap32(pRel.r_info);
-  }
-
-  pType = static_cast<unsigned char>(r_info);
+  pType = r_info & 0xFF;
   pSymIdx = (r_info >> 8);
   return true;
 }
 
-/// readRelocation - read ELF32_Rela entry
-bool GNULDBackend::readRelocation(const llvm::ELF::Elf32_Rela& pRel,
-                                  Relocation::Type& pType,
-                                  uint32_t& pSymIdx,
-                                  uint32_t& pOffset,
-                                  int32_t& pAddend) const
+bool GNULDBackend::decodeRelocationInfo(uint64_t r_info,
+                                        Relocation::Type& pType,
+                                        uint32_t& pSymIdx) const
 {
-  uint32_t r_info   = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-    pAddend = pRel.r_addend;
-  }
-  else {
-    pOffset = mcld::bswap32(pRel.r_offset);
-    r_info  = mcld::bswap32(pRel.r_info);
-    pAddend = mcld::bswap32(pRel.r_addend);
-  }
-
-  pType = static_cast<unsigned char>(r_info);
-  pSymIdx = (r_info >> 8);
-  return true;
-}
-
-/// readRelocation - read ELF64_Rel entry
-bool GNULDBackend::readRelocation(const llvm::ELF::Elf64_Rel& pRel,
-                              Relocation::Type& pType,
-                              uint32_t& pSymIdx,
-                              uint64_t& pOffset) const
-{
-  uint64_t r_info = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-  }
-  else {
-    pOffset = mcld::bswap64(pRel.r_offset);
-    r_info  = mcld::bswap64(pRel.r_info);
-  }
-
-  pType = static_cast<uint32_t>(r_info);
+  pType = r_info & 0xFFFFFFFF;
   pSymIdx = (r_info >> 32);
   return true;
 }
 
-/// readRel - read ELF64_Rela entry
-bool GNULDBackend::readRelocation(const llvm::ELF::Elf64_Rela& pRel,
-                              Relocation::Type& pType,
-                              uint32_t& pSymIdx,
-                              uint64_t& pOffset,
-                              int64_t& pAddend) const
+/// encodeRelocationInfo - combine symbol index and relocation type.
+void GNULDBackend::encodeRelocationInfo(uint32_t pType,
+                                        uint32_t pSymIdx,
+                                        uint32_t &r_info) const
 {
-  uint64_t r_info = 0x0;
-  if (llvm::sys::IsLittleEndianHost) {
-    pOffset = pRel.r_offset;
-    r_info  = pRel.r_info;
-    pAddend = pRel.r_addend;
-  }
-  else {
-    pOffset = mcld::bswap64(pRel.r_offset);
-    r_info  = mcld::bswap64(pRel.r_info);
-    pAddend = mcld::bswap64(pRel.r_addend);
-  }
-
-  pType = static_cast<uint32_t>(r_info);
-  pSymIdx = (r_info >> 32);
-  return true;
+  r_info = pSymIdx;
+  r_info <<= 8;
+  r_info |= pType;
 }
 
-/// emitRelocation - write data to the ELF32_Rel entry
-void GNULDBackend::emitRelocation(llvm::ELF::Elf32_Rel& pRel,
-                                  Relocation::Type pType,
-                                  uint32_t pSymIdx,
-                                  uint32_t pOffset) const
+void GNULDBackend::encodeRelocationInfo(uint32_t pType,
+                                        uint32_t pSymIdx,
+                                        uint64_t &r_info) const
 {
-  pRel.r_offset = pOffset;
-  pRel.setSymbolAndType(pSymIdx, pType);
-}
-
-/// emitRelocation - write data to the ELF32_Rela entry
-void GNULDBackend::emitRelocation(llvm::ELF::Elf32_Rela& pRel,
-                                  Relocation::Type pType,
-                                  uint32_t pSymIdx,
-                                  uint32_t pOffset,
-                                  int32_t pAddend) const
-{
-  pRel.r_offset = pOffset;
-  pRel.r_addend = pAddend;
-  pRel.setSymbolAndType(pSymIdx, pType);
-}
-
-/// emitRelocation - write data to the ELF64_Rel entry
-void GNULDBackend::emitRelocation(llvm::ELF::Elf64_Rel& pRel,
-                                  Relocation::Type pType,
-                                  uint32_t pSymIdx,
-                                  uint64_t pOffset) const
-{
-  pRel.r_offset = pOffset;
-  pRel.setSymbolAndType(pSymIdx, pType);
-}
-
-/// emitRelocation - write data to the ELF64_Rela entry
-void GNULDBackend::emitRelocation(llvm::ELF::Elf64_Rela& pRel,
-                                  Relocation::Type pType,
-                                  uint32_t pSymIdx,
-                                  uint64_t pOffset,
-                                  int64_t pAddend) const
-{
-  pRel.r_offset = pOffset;
-  pRel.r_addend = pAddend;
-  pRel.setSymbolAndType(pSymIdx, pType);
+  r_info = pSymIdx;
+  r_info <<= 32;
+  r_info |= pType;
 }
 
 /// createProgramHdrs - base on output sections to create the program headers
