@@ -2966,6 +2966,22 @@ bool GNULDBackend::relax(Module& pModule, IRBuilder& pBuilder)
   return true;
 }
 
+void GNULDBackend::mapSymbol(const LDSymbol *pSym, size_t pSymIdx) {
+  if (LinkerConfig::Object == config().codeGenType()) {
+    bool sym_exist = false;
+    HashTableType::entry_type *entry =
+      m_pSymIndexMap->insert(const_cast<LDSymbol*>(pSym), sym_exist);
+    entry->setValue(pSymIdx);
+  }
+}
+
+void GNULDBackend::mapDynamicSymbol(const LDSymbol *pSym, size_t pSymIdx) {
+  bool sym_exist = false;
+  HashTableType::entry_type *entry =
+    m_pSymIndexMap->insert(const_cast<LDSymbol*>(pSym), sym_exist);
+  entry->setValue(pSymIdx);
+}
+
 bool GNULDBackend::DynsymCompare::needGNUHash(const LDSymbol& X) const
 {
   // FIXME: in bfd and gold linker, an undefined symbol might be hashed

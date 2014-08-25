@@ -49,6 +49,7 @@ SOURCE = ADT/StringEntry.cpp \
 	LD/ELFFileFormat.cpp \
 	LD/ELFObjectReader.cpp \
 	LD/ELFObjectWriter.cpp \
+	LD/ELFReaderWriter.cpp \
 	LD/ELFReader.cpp \
 	LD/ELFReaderIf.cpp \
 	LD/ELFSegment.cpp \

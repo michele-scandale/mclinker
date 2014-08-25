@@ -300,6 +300,16 @@ public:
   /// function pointer access
   bool mayHaveUnsafeFunctionPointerAccess(const LDSection& pSection) const;
 
+  /// dynamic - the dynamic section of the target machine.
+  virtual ELFDynamic& dynamic() = 0;
+
+  /// dynamic - the dynamic section of the target machine.
+  virtual const ELFDynamic& dynamic() const = 0;
+
+  void mapSymbol(const LDSymbol *pSym, size_t pSymIdx);
+
+  void mapDynamicSymbol(const LDSymbol *pSym, size_t pSymIdx);
+
 protected:
   /// getRelEntrySize - the size in BYTE of rel type relocation
   virtual size_t getRelEntrySize() = 0;
@@ -385,12 +395,6 @@ private:
 
   /// postProcessing - Backend can do any needed modification in the final stage
   void postProcessing(FileOutputBuffer& pOutput);
-
-  /// dynamic - the dynamic section of the target machine.
-  virtual ELFDynamic& dynamic() = 0;
-
-  /// dynamic - the dynamic section of the target machine.
-  virtual const ELFDynamic& dynamic() const = 0;
 
   /// relax - the relaxation pass
   bool relax(Module& pModule, IRBuilder& pBuilder);

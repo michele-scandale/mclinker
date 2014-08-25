@@ -58,6 +58,8 @@ HEADER = $(INCDIR)/AttributeOption.h \
          $(INCDIR)/LD/ELFObjectFileFormat.h \
          $(INCDIR)/LD/ELFObjectReader.h \
          $(INCDIR)/LD/ELFObjectWriter.h \
+         $(INCDIR)/LD/ELFReaderWriter.h \
+         $(INCDIR)/LD/ELFReaderWriterImpl.h \
          $(INCDIR)/LD/ELFReader.h \
          $(INCDIR)/LD/ELFReaderIf.h \
          $(INCDIR)/LD/ELFSegmentFactory.h \

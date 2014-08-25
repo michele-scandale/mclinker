@@ -22,6 +22,7 @@ add_mcld_library(MCLDLD
   ELFFileFormat.cpp
   ELFObjectReader.cpp
   ELFObjectWriter.cpp
+  ELFReaderWriter.cpp
   ELFReader.cpp
   ELFReaderIf.cpp
   ELFSegment.cpp
