@@ -41,12 +41,12 @@ using namespace mcld;
 //===----------------------------------------------------------------------===//
 // ELFObjectWriter
 //===----------------------------------------------------------------------===//
-ELFObjectWriter::ELFObjectWriter(const GenericELFReaderWriter &pELFReaderWriter)
+ELFObjectWriter::ELFObjectWriter(const GenericELFReaderWriter& pELFReaderWriter)
  : ObjectWriter(), m_ELFReaderWriter(pELFReaderWriter) {}
 
 ELFObjectWriter::~ELFObjectWriter() {}
 
-std::error_code ELFObjectWriter::writeObject(Module &pModule,
+std::error_code ELFObjectWriter::writeObject(Module& pModule,
                                              FileOutputBuffer& pOutput) {
   const LinkerConfig &config = m_ELFReaderWriter.config();
   bool IsDynObj = config.codeGenType() == LinkerConfig::DynObj;
@@ -58,11 +58,11 @@ std::error_code ELFObjectWriter::writeObject(Module &pModule,
 
   if (IsBinary) {
     // Iterate over the loadable segments and write the corresponding sections
-    const ELFSegmentFactory &SegmentTable =
+    const ELFSegmentFactory& SegmentTable =
       m_ELFReaderWriter.target().elfSegmentTable();
     for (ELFSegmentFactory::const_iterator I = SegmentTable.begin(),
          E = SegmentTable.end(); I != E; ++I) {
-      const ELFSegment &Seg = **I;
+      const ELFSegment& Seg = **I;
       if (Seg.type() == llvm::ELF::PT_LOAD) {
         for (ELFSegment::const_iterator SI = Seg.begin(),
              SE = Seg.end(); SI != SE; ++SI)

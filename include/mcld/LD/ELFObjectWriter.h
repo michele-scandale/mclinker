@@ -25,16 +25,16 @@ class Module;
 class ELFObjectWriter : public ObjectWriter
 {
 public:
-  ELFObjectWriter(const GenericELFReaderWriter &pELFWriter);
+  ELFObjectWriter(const GenericELFReaderWriter& pELFWriter);
 
   ~ELFObjectWriter();
 
-  std::error_code writeObject(Module &pModule, FileOutputBuffer &pOutput);
+  std::error_code writeObject(Module& pModule, FileOutputBuffer& pOutput);
 
-  size_t getOutputSize(const Module &pModule) const;
+  size_t getOutputSize(const Module& pModule) const;
 
 private:
-  const GenericELFReaderWriter &m_ELFReaderWriter;
+  const GenericELFReaderWriter& m_ELFReaderWriter;
 };
 
 } // namespace of mcld

@@ -166,7 +166,7 @@ private:
 
   /// encodeRelocationInfo - combine symbol index and relocation type.
   void encodeRelocationInfo(uint32_t pType, uint32_t pSymIdx,
-                            uint64_t &r_info) const;
+                            uint64_t& r_info) const;
 
 private:
   typedef llvm::DenseSet<const ResolveInfo*> ResolveInfoSetType;

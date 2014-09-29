@@ -28,7 +28,7 @@ using namespace mcld;
 //===----------------------------------------------------------------------===//
 // ELFDynObjReader
 //===----------------------------------------------------------------------===//
-ELFDynObjReader::ELFDynObjReader(const GenericELFReaderWriter &pELFReaderWriter,
+ELFDynObjReader::ELFDynObjReader(const GenericELFReaderWriter& pELFReaderWriter,
                                  const LinkerConfig& pConfig,
                                  IRBuilder& pBuilder)
   : DynObjReader(),
@@ -38,7 +38,7 @@ ELFDynObjReader::ELFDynObjReader(const GenericELFReaderWriter &pELFReaderWriter,
 ELFDynObjReader::~ELFDynObjReader() {}
 
 /// isMyFormat
-bool ELFDynObjReader::isMyFormat(Input &pInput, bool &pContinue) const
+bool ELFDynObjReader::isMyFormat(Input& pInput, bool &pContinue) const
 {
   assert(pInput.hasMemArea());
 

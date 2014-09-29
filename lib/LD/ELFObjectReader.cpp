@@ -33,8 +33,8 @@ using namespace mcld;
 // ELFObjectReader
 //===----------------------------------------------------------------------===//
 /// constructor
-ELFObjectReader::ELFObjectReader(const GenericELFReaderWriter &pELFReaderWriter,
-                                 const LinkerConfig &pConfig,
+ELFObjectReader::ELFObjectReader(const GenericELFReaderWriter& pELFReaderWriter,
+                                 const LinkerConfig& pConfig,
                                  IRBuilder& pBuilder)
  : ObjectReader(),
    m_ELFReaderWriter(pELFReaderWriter),
@@ -49,7 +49,7 @@ ELFObjectReader::~ELFObjectReader() {
 }
 
 /// isMyFormat
-bool ELFObjectReader::isMyFormat(Input &pInput, bool &pContinue) const {
+bool ELFObjectReader::isMyFormat(Input& pInput, bool &pContinue) const {
   assert(pInput.hasMemArea());
 
   // Don't warning about the frequently requests.

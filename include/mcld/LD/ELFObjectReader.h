@@ -36,32 +36,32 @@ public:
   typedef Flags<ReadFlagType> ReadFlag;
 
 public:
-  ELFObjectReader(const GenericELFReaderWriter &pELFReader,
-                  const LinkerConfig &pConfig, IRBuilder &pBuilder);
+  ELFObjectReader(const GenericELFReaderWriter& pELFReader,
+                  const LinkerConfig& pConfig, IRBuilder& pBuilder);
 
   ~ELFObjectReader();
 
   // -----  observers  ----- //
-  bool isMyFormat(Input &pFile, bool &pContinue) const;
+  bool isMyFormat(Input& pFile, bool& pContinue) const;
 
   // -----  readers  ----- //
-  bool readHeader(Input &pFile);
+  bool readHeader(Input& pFile);
 
-  virtual bool readSections(Input &pFile);
+  virtual bool readSections(Input& pFile);
 
-  virtual bool readSymbols(Input &pFile);
+  virtual bool readSymbols(Input& pFile);
 
   /// readRelocations - read relocation sections
   ///
   /// This function should be called after symbol resolution.
-  virtual bool readRelocations(Input &pFile);
+  virtual bool readRelocations(Input& pFile);
 
 private:
-  const GenericELFReaderWriter &m_ELFReaderWriter;
-  EhFrameReader *m_pEhFrameReader;
-  IRBuilder &m_Builder;
+  const GenericELFReaderWriter& m_ELFReaderWriter;
+  EhFrameReader* m_pEhFrameReader;
+  IRBuilder& m_Builder;
   ReadFlag m_ReadFlag;
-  const LinkerConfig &m_Config;
+  const LinkerConfig& m_Config;
 };
 
 } // namespace of mcld

@@ -194,9 +194,9 @@ public:
 
   /// encodeRelocationInfo - combine symbol index and relocation type.
   virtual void encodeRelocationInfo(uint32_t pType, uint32_t pSymIdx,
-                                    uint32_t &r_info) const;
+                                    uint32_t& r_info) const;
   virtual void encodeRelocationInfo(uint32_t pType, uint32_t pSymIdx,
-                                    uint64_t &r_info) const;
+                                    uint64_t& r_info) const;
 
   /// symbolNeedsPLT - return whether the symbol needs a PLT entry
   /// @ref Google gold linker, symtab.h:596
@@ -298,9 +298,9 @@ public:
   /// dynamic - the dynamic section of the target machine.
   virtual const ELFDynamic& dynamic() const = 0;
 
-  void mapSymbol(const LDSymbol *pSym, size_t pSymIdx);
+  void mapSymbol(const LDSymbol* pSym, size_t pSymIdx);
 
-  void mapDynamicSymbol(const LDSymbol *pSym, size_t pSymIdx);
+  void mapDynamicSymbol(const LDSymbol* pSym, size_t pSymIdx);
 
 protected:
   /// getRelEntrySize - the size in BYTE of rel type relocation
@@ -453,7 +453,7 @@ protected:
 
 
 protected:
-  GenericELFReaderWriter *m_ELFReaderWriter;
+  GenericELFReaderWriter* m_ELFReaderWriter;
 
   ELFObjectReader* m_pObjectReader;
 

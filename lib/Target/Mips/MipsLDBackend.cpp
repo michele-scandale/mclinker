@@ -803,7 +803,7 @@ bool MipsGNULDBackend::decodeRelocationInfo(uint64_t r_info,
 
 void MipsGNULDBackend::encodeRelocationInfo(Relocation::Type pType,
                                             uint32_t pSymIdx,
-                                            uint64_t &r_info) const
+                                            uint64_t& r_info) const
 {
   if (config().targets().isLittleEndian()) {
     // MIPS 64 little endian (we do not support big endian now)

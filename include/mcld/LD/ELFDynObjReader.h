@@ -25,13 +25,13 @@ class GenericELFReaderWriter;
 class ELFDynObjReader : public DynObjReader
 {
 public:
-  ELFDynObjReader(const GenericELFReaderWriter &pELFReaderWriter,
+  ELFDynObjReader(const GenericELFReaderWriter& pELFReaderWriter,
                   const LinkerConfig& pConfig,
                   IRBuilder& pBuilder);
   ~ELFDynObjReader();
 
   // -----  observers  ----- //
-  bool isMyFormat(Input &pFile, bool &pContinue) const;
+  bool isMyFormat(Input& pFile, bool& pContinue) const;
 
   // -----  readers  ----- //
   bool readHeader(Input& pFile);
@@ -39,7 +39,7 @@ public:
   bool readSymbols(Input& pInput);
 
 private:
-  const GenericELFReaderWriter &m_ELFReaderWriter;
+  const GenericELFReaderWriter& m_ELFReaderWriter;
   IRBuilder& m_Builder;
 };
 

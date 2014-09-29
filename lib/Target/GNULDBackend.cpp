@@ -155,7 +155,7 @@ GNULDBackend::createArchiveReader(Module& pModule)
   return new GNUArchiveReader(pModule, *m_pObjectReader);
 }
 
-ELFObjectReader* GNULDBackend::createObjectReader(IRBuilder &pBuilder)
+ELFObjectReader* GNULDBackend::createObjectReader(IRBuilder& pBuilder)
 {
   if (!m_ELFReaderWriter)
     m_ELFReaderWriter = GenericELFReaderWriter::create(*this, config());
@@ -1384,7 +1384,7 @@ bool GNULDBackend::decodeRelocationInfo(uint64_t r_info,
 /// encodeRelocationInfo - combine symbol index and relocation type.
 void GNULDBackend::encodeRelocationInfo(uint32_t pType,
                                         uint32_t pSymIdx,
-                                        uint32_t &r_info) const
+                                        uint32_t& r_info) const
 {
   r_info = pSymIdx;
   r_info <<= 8;
@@ -1393,7 +1393,7 @@ void GNULDBackend::encodeRelocationInfo(uint32_t pType,
 
 void GNULDBackend::encodeRelocationInfo(uint32_t pType,
                                         uint32_t pSymIdx,
-                                        uint64_t &r_info) const
+                                        uint64_t& r_info) const
 {
   r_info = pSymIdx;
   r_info <<= 32;
@@ -1403,7 +1403,7 @@ void GNULDBackend::encodeRelocationInfo(uint32_t pType,
 /// createProgramHdrs - base on output sections to create the program headers
 void GNULDBackend::createProgramHdrs(Module& pModule)
 {
-  ELFFileFormat *file_format = getOutputFormat();
+  ELFFileFormat* file_format = getOutputFormat();
 
   // make PT_INTERP
   if (file_format->hasInterp()) {
@@ -1532,7 +1532,7 @@ void GNULDBackend::createProgramHdrs(Module& pModule)
   }
 
   // make PT_NOTE
-  ELFSegment *note_seg = NULL;
+  ELFSegment* note_seg = NULL;
   prev_flag = 0x0;
   Module::iterator sect, sectBegin, sectEnd;
   sectBegin = pModule.begin();
